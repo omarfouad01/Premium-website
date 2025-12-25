@@ -12,7 +12,8 @@ import {
   Palette,
   FileText,
   Image as ImageIcon,
-  Search
+  Search,
+  Images
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -52,6 +53,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     { icon: ImageIcon, label: "Logo & Branding", path: "/admin/logo" },
     { icon: Palette, label: "Design & Colors", path: "/admin/design" },
     { icon: FileText, label: "Page Content", path: "/admin/content" },
+    { icon: Images, label: "Photo Management", path: "/admin/photos" },
     { icon: Package, label: "Packages", path: "/admin/packages" },
     { icon: HelpCircle, label: "FAQs", path: "/admin/faqs" },
     { icon: Mail, label: "Submissions", path: "/admin/submissions" },

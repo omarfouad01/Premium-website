@@ -19,6 +19,7 @@ import AdminSEO from "./pages/admin/SEO";
 import AdminLogo from "./pages/admin/Logo";
 import AdminDesign from "./pages/admin/Design";
 import AdminContent from "./pages/admin/Content";
+import AdminPhotos from "./pages/admin/Photos";
 import AdminPackages from "./pages/admin/Packages";
 import AdminFAQs from "./pages/admin/FAQs";
 import AdminSubmissions from "./pages/admin/Submissions";
@@ -52,6 +53,7 @@ const App = () => (
             <Route path="/admin/logo" element={<AdminLogo />} />
             <Route path="/admin/design" element={<AdminDesign />} />
             <Route path="/admin/content" element={<AdminContent />} />
+            <Route path="/admin/photos" element={<AdminPhotos />} />
             <Route path="/admin/packages" element={<AdminPackages />} />
             <Route path="/admin/faqs" element={<AdminFAQs />} />
             <Route path="/admin/submissions" element={<AdminSubmissions />} />
