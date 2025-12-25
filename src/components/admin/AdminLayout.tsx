@@ -13,7 +13,8 @@ import {
   FileText,
   Image as ImageIcon,
   Search,
-  Images
+  Images,
+  Users
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -57,6 +58,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     { icon: Package, label: "Packages", path: "/admin/packages" },
     { icon: HelpCircle, label: "FAQs", path: "/admin/faqs" },
     { icon: Mail, label: "Submissions", path: "/admin/submissions" },
+    { icon: Users, label: "User Management", path: "/admin/users" },
   ];
 
   const isActive = (path: string) => location.pathname === path;
