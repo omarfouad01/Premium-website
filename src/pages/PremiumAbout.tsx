@@ -1,8 +1,11 @@
 import PremiumHeader from "@/components/PremiumHeader";
 import PremiumFooter from "@/components/PremiumFooter";
 import { Target, Eye, TrendingUp, Globe, Users, Award } from "lucide-react";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const PremiumAbout = () => {
+  const { get, loading } = usePageContent("about");
+  
   const values = [
     {
       icon: Target,
@@ -41,11 +44,11 @@ const PremiumAbout = () => {
         <div className="container-premium">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-premium-heading mb-6">
-              Building Egypt's Green Economy Platform
+              {get("about_page_title", "Building Egypt's Green Economy Platform")}
             </h1>
             
             <p className="text-xl text-muted-foreground leading-relaxed max-w-3xl mx-auto">
-              Green Life Expo exists to bridge the gap between sustainable innovation and market adoption, creating a thriving ecosystem where green businesses flourish and conscious consumers discover solutions for healthier, more sustainable living.
+              {get("about_page_subtitle", "Green Life Expo exists to bridge the gap between sustainable innovation and market adoption, creating a thriving ecosystem where green businesses flourish and conscious consumers discover solutions for healthier, more sustainable living.")}
             </p>
           </div>
         </div>
@@ -59,9 +62,9 @@ const PremiumAbout = () => {
               <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center mb-6">
                 <Eye className="h-8 w-8 text-primary" />
               </div>
-              <h2 className="text-3xl font-semibold mb-6">Our Vision</h2>
+              <h2 className="text-3xl font-semibold mb-6">{get("vision_section_title", "Our Vision")}</h2>
               <p className="text-lg text-muted-foreground leading-relaxed">
-                To establish Egypt as the Middle East's leading platform for sustainable living, where green innovation meets market opportunity, and where businesses and consumers unite to create a healthier, more sustainable future for generations to come.
+                {get("vision_description", "To establish Egypt as the Middle East's leading platform for sustainable living, where green innovation meets market opportunity, and where businesses and consumers unite to create a healthier, more sustainable future for generations to come.")}
               </p>
             </div>
 
@@ -69,9 +72,9 @@ const PremiumAbout = () => {
               <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center mb-6">
                 <Target className="h-8 w-8 text-primary" />
               </div>
-              <h2 className="text-3xl font-semibold mb-6">Our Mission</h2>
+              <h2 className="text-3xl font-semibold mb-6">{get("mission_section_title", "Our Mission")}</h2>
               <p className="text-lg text-muted-foreground leading-relaxed">
-                To create a comprehensive platform that connects sustainable businesses with conscious consumers, facilitates knowledge exchange, drives green innovation, and accelerates the adoption of sustainable practices across all sectors of Egyptian society.
+                {get("mission_description", "To create a comprehensive platform that connects sustainable businesses with conscious consumers, facilitates knowledge exchange, drives green innovation, and accelerates the adoption of sustainable practices across all sectors of Egyptian society.")}
               </p>
             </div>
           </div>
