@@ -6,7 +6,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Phone, Calendar, CheckCircle2, Users, Building, MapPin, Tag } from "lucide-react";
+import { Mail, Phone, Calendar, CheckCircle2, Users, Building, MapPin, Tag, ToggleLeft, ToggleRight } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 interface ContactSubmission {
   id: string;
@@ -42,6 +45,10 @@ const AdminSubmissions = () => {
   const [contactSubmissions, setContactSubmissions] = useState<ContactSubmission[]>([]);
   const [visitorRegistrations, setVisitorRegistrations] = useState<VisitorRegistration[]>([]);
   const [loading, setLoading] = useState(true);
+  const [visitorRegEnabled, setVisitorRegEnabled] = useState(true);
+  const [closedMessageEn, setClosedMessageEn] = useState("");
+  const [closedMessageAr, setClosedMessageAr] = useState("");
+  const [savingSettings, setSavingSettings] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -50,6 +57,19 @@ const AdminSubmissions = () => {
 
   const loadData = async () => {
     setLoading(true);
+    
+    // Load visitor registration settings
+    const settingsRes = await supabase
+      .from("site_settings_premium_20251225")
+      .select("visitor_registration_enabled, visitor_registration_closed_message, visitor_registration_closed_message_ar")
+      .limit(1)
+      .single();
+    
+    if (settingsRes.data) {
+      setVisitorRegEnabled(settingsRes.data.visitor_registration_enabled ?? true);
+      setClosedMessageEn(settingsRes.data.visitor_registration_closed_message || "");
+      setClosedMessageAr(settingsRes.data.visitor_registration_closed_message_ar || "");
+    }
     
     const [contactRes, visitorRes] = await Promise.all([
       supabase
@@ -100,6 +120,34 @@ const AdminSubmissions = () => {
     } else {
       loadData();
     }
+  };
+
+  const saveVisitorRegistrationSettings = async () => {
+    setSavingSettings(true);
+    
+    const { error } = await supabase
+      .from("site_settings_premium_20251225")
+      .update({
+        visitor_registration_enabled: visitorRegEnabled,
+        visitor_registration_closed_message: closedMessageEn,
+        visitor_registration_closed_message_ar: closedMessageAr,
+      })
+      .eq("id", (await supabase.from("site_settings_premium_20251225").select("id").limit(1).single()).data?.id);
+    
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save settings",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Visitor registration settings updated",
+      });
+    }
+    
+    setSavingSettings(false);
   };
 
   const markVisitorAsRead = async (id: string) => {
@@ -276,6 +324,74 @@ const AdminSubmissions = () => {
 
           {/* Visitor Registrations */}
           <TabsContent value="visitors" className="space-y-4">
+            {/* Visitor Registration Control */}
+            <Card className="border-blue-200 bg-blue-50">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {visitorRegEnabled ? (
+                      <ToggleRight className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <ToggleLeft className="h-5 w-5 text-red-600" />
+                    )}
+                    Visitor Registration Control
+                  </div>
+                  <Button 
+                    onClick={saveVisitorRegistrationSettings}
+                    disabled={savingSettings}
+                    size="sm"
+                  >
+                    {savingSettings ? "Saving..." : "Save Settings"}
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-white rounded-lg">
+                  <div className="space-y-1">
+                    <Label className="text-base font-semibold">
+                      Enable Visitor Registration
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      {visitorRegEnabled 
+                        ? "Visitors can submit registration requests" 
+                        : "Visitor registration is closed - form will be hidden"}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={visitorRegEnabled}
+                    onCheckedChange={setVisitorRegEnabled}
+                  />
+                </div>
+                
+                {!visitorRegEnabled && (
+                  <div className="space-y-4 p-4 bg-white rounded-lg">
+                    <div className="space-y-2">
+                      <Label htmlFor="closed-message-en">Closed Message (English)</Label>
+                      <Textarea
+                        id="closed-message-en"
+                        value={closedMessageEn}
+                        onChange={(e) => setClosedMessageEn(e.target.value)}
+                        placeholder="Message to show when registration is closed"
+                        rows={3}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="closed-message-ar">Closed Message (Arabic)</Label>
+                      <Textarea
+                        id="closed-message-ar"
+                        value={closedMessageAr}
+                        onChange={(e) => setClosedMessageAr(e.target.value)}
+                        placeholder="الرسالة عند إغلاق التسجيل"
+                        rows={3}
+                        dir="rtl"
+                        className="text-right"
+                      />
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">

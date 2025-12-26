@@ -1,10 +1,40 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import PremiumHeader from "@/components/PremiumHeader";
 import PremiumFooter from "@/components/PremiumFooter";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Calendar, MapPin, Clock, Ticket, Users, Mic, ShoppingBag, CheckCircle } from "lucide-react";
+import { ArrowRight, Calendar, MapPin, Clock, Ticket, Users, Mic, ShoppingBag, CheckCircle, XCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Card, CardContent } from "@/components/ui/card";
 
 const PremiumVisitors = () => {
+  const { language } = useLanguage();
+  const [registrationEnabled, setRegistrationEnabled] = useState(true);
+  const [closedMessage, setClosedMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadRegistrationSettings();
+  }, [language]);
+
+  const loadRegistrationSettings = async () => {
+    const { data, error } = await supabase
+      .from("site_settings_premium_20251225")
+      .select("visitor_registration_enabled, visitor_registration_closed_message, visitor_registration_closed_message_ar")
+      .limit(1)
+      .single();
+
+    if (data) {
+      setRegistrationEnabled(data.visitor_registration_enabled ?? true);
+      const message = language === "ar" 
+        ? data.visitor_registration_closed_message_ar 
+        : data.visitor_registration_closed_message;
+      setClosedMessage(message || "Visitor registration is currently closed. Please check back later.");
+    }
+    setLoading(false);
+  };
+
   const highlights = [
     {
       icon: ShoppingBag,
@@ -77,17 +107,36 @@ const PremiumVisitors = () => {
               Join thousands of sustainability enthusiasts, business professionals, and conscious consumers for three days of discovery, learning, and connection.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-6 justify-center mb-12">
-              <Button size="lg" asChild className="btn-premium btn-premium-primary group">
-                <Link to="/contact">
-                  Register Now
-                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild className="btn-premium btn-premium-outline">
-                <a href="#schedule">View Schedule</a>
-              </Button>
-            </div>
+            {/* Registration Status */}
+            {!loading && (
+              <div className="mb-12">
+                {registrationEnabled ? (
+                  <div className="flex flex-col sm:flex-row gap-6 justify-center">
+                    <Button size="lg" asChild className="btn-premium btn-premium-primary group">
+                      <Link to="/contact">
+                        Register Now
+                        <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                      </Link>
+                    </Button>
+                    <Button size="lg" variant="outline" asChild className="btn-premium btn-premium-outline">
+                      <a href="#schedule">View Schedule</a>
+                    </Button>
+                  </div>
+                ) : (
+                  <Card className="max-w-2xl mx-auto border-red-200 bg-red-50">
+                    <CardContent className="p-8 text-center">
+                      <XCircle className="h-16 w-16 text-red-600 mx-auto mb-4" />
+                      <h3 className="text-2xl font-semibold text-red-900 mb-3">
+                        {language === "ar" ? "التسجيل مغلق" : "Registration Closed"}
+                      </h3>
+                      <p className="text-lg text-red-800">
+                        {closedMessage}
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
 
             {/* Event Info Cards */}
             <div className="grid md:grid-cols-3 gap-6 max-w-3xl mx-auto">
