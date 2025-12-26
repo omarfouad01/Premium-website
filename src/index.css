@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -128,6 +130,17 @@ All colors MUST be HSL.
     @apply bg-background text-foreground antialiased;
     font-feature-settings: 'cv11', 'ss01';
     font-variation-settings: 'opsz' 32;
+  }
+  
+  /* Arabic Font Support */
+  html[lang="ar"] body,
+  html[lang="ar"] * {
+    font-family: 'Cairo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  
+  /* RTL Support */
+  html[dir="rtl"] {
+    direction: rtl;
   }
   
   h1, h2, h3, h4, h5, h6 {

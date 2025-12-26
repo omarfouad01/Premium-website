@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Languages } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const PremiumHeader = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
+  const { language, setLanguage, t } = useLanguage();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -18,17 +20,24 @@ const PremiumHeader = () => {
   }, []);
 
   const navItems = [
-    { name: "Home", path: "/" },
-    { name: "About", path: "/about" },
-    { name: "Sectors", path: "/sectors" },
-    { name: "Exhibitors", path: "/exhibitors" },
-    { name: "Sponsors", path: "/sponsors" },
-    { name: "Visitors", path: "/visitors" },
-    { name: "Content & Talks", path: "/content" },
-    { name: "Contact", path: "/contact" },
+    { name: t("nav_home", "Home"), path: "/" },
+    { name: t("nav_about", "About"), path: "/about" },
+    { name: t("nav_sectors", "Sectors"), path: "/sectors" },
+    { name: t("nav_exhibitors", "Exhibitors"), path: "/exhibitors" },
+    { name: t("nav_sponsors", "Sponsors"), path: "/sponsors" },
+    { name: t("nav_visitors", "Visitors"), path: "/visitors" },
+    { name: t("nav_content", "Content & Talks"), path: "/content" },
+    { name: t("nav_contact", "Contact"), path: "/contact" },
   ];
 
   const isActive = (path: string) => location.pathname === path;
+
+  const toggleLanguage = () => {
+    const newLang = language === "en" ? "ar" : "en";
+    setLanguage(newLang);
+    // Reload page to apply RTL/LTR changes
+    window.location.reload();
+  };
 
   return (
     <header
@@ -55,76 +64,65 @@ const PremiumHeader = () => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`text-sm font-medium transition-colors relative group ${
+                className={`text-sm font-medium transition-colors hover:text-primary ${
                   isActive(item.path)
                     ? "text-primary"
-                    : "text-foreground/70 hover:text-primary"
+                    : "text-gray-700"
                 }`}
               >
                 {item.name}
-                <span
-                  className={`absolute -bottom-1 left-0 h-0.5 bg-primary transition-all duration-300 ${
-                    isActive(item.path) ? "w-full" : "w-0 group-hover:w-full"
-                  }`}
-                />
               </Link>
             ))}
           </nav>
 
-          {/* CTA Buttons */}
-          <div className="hidden lg:flex items-center gap-4">
-            <Button variant="outline" asChild className="border-primary text-primary hover:bg-primary hover:text-white">
-              <Link to="/exhibitors">Exhibit With Us</Link>
+          {/* Language Switcher & Mobile Menu Button */}
+          <div className="flex items-center gap-4">
+            {/* Language Switcher Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleLanguage}
+              className="flex items-center gap-2"
+            >
+              <Languages className="h-4 w-4" />
+              <span className="font-semibold">
+                {language === "en" ? "العربية" : "English"}
+              </span>
             </Button>
-            <Button asChild className="bg-primary hover:bg-primary/90">
-              <Link to="/sponsors">Become a Sponsor</Link>
-            </Button>
-          </div>
 
-          {/* Mobile Menu Button */}
-          <button
-            className="lg:hidden p-2 hover:bg-accent/10 rounded-lg transition-colors"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            aria-label="Toggle menu"
-          >
-            {isMenuOpen ? (
-              <X className="h-6 w-6 text-foreground" />
-            ) : (
-              <Menu className="h-6 w-6 text-foreground" />
-            )}
-          </button>
+            {/* Mobile Menu Button */}
+            <button
+              className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-label="Toggle menu"
+            >
+              {isMenuOpen ? (
+                <X className="h-6 w-6 text-gray-700" />
+              ) : (
+                <Menu className="h-6 w-6 text-gray-700" />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <nav className="lg:hidden py-6 border-t border-border animate-fade-in">
+          <nav className="lg:hidden py-6 border-t border-gray-200">
             <div className="flex flex-col gap-4">
               {navItems.map((item) => (
                 <Link
                   key={item.path}
                   to={item.path}
                   onClick={() => setIsMenuOpen(false)}
-                  className={`text-base font-medium transition-colors px-4 py-2 rounded-lg ${
+                  className={`text-base font-medium transition-colors hover:text-primary px-4 py-2 rounded-lg ${
                     isActive(item.path)
                       ? "text-primary bg-primary/5"
-                      : "text-foreground/70 hover:text-primary hover:bg-accent/5"
+                      : "text-gray-700"
                   }`}
                 >
                   {item.name}
                 </Link>
               ))}
-              <div className="flex flex-col gap-3 pt-4 border-t border-border px-4">
-                <Button variant="outline" asChild className="w-full border-primary text-primary">
-                  <Link to="/exhibitors" onClick={() => setIsMenuOpen(false)}>
-                    Exhibit With Us
-                  </Link>
-                </Button>
-                <Button asChild className="w-full bg-primary hover:bg-primary/90">
-                  <Link to="/sponsors" onClick={() => setIsMenuOpen(false)}>
-                    Become a Sponsor
-                  </Link>
-                </Button>
-              </div>
             </div>
           </nav>
         )}
