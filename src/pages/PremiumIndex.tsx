@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import PremiumHeader from "@/components/PremiumHeader";
 import PremiumFooter from "@/components/PremiumFooter";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Users, TrendingUp, Award, Globe, CheckCircle, Calendar, MapPin } from "lucide-react";
+import { ArrowRight, Users, TrendingUp, Award, Globe, CheckCircle, Calendar, MapPin, Leaf, Heart, Home, Sparkles, Zap, Shirt } from "lucide-react";
 import { usePageContent } from "@/hooks/usePageContent";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -14,32 +14,44 @@ const PremiumIndex = () => {
     {
       title: "Organic Food & Beverages",
       description: "Premium organic products, healthy nutrition, and sustainable food solutions",
-      icon: "🌾",
+      icon: Leaf,
+      color: "text-green-600",
+      bgColor: "bg-green-50",
     },
     {
       title: "Health & Wellness",
       description: "Natural health products, fitness solutions, and holistic wellness services",
-      icon: "💚",
+      icon: Heart,
+      color: "text-red-600",
+      bgColor: "bg-red-50",
     },
     {
       title: "Sustainable Living",
       description: "Eco-friendly products, green technologies, and sustainable lifestyle solutions",
-      icon: "🌱",
+      icon: Home,
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
     },
     {
       title: "Natural Beauty & Personal Care",
       description: "Organic cosmetics, natural skincare, and eco-conscious personal care",
-      icon: "✨",
+      icon: Sparkles,
+      color: "text-purple-600",
+      bgColor: "bg-purple-50",
     },
     {
       title: "Green Technology",
       description: "Renewable energy, clean tech innovations, and environmental solutions",
-      icon: "⚡",
+      icon: Zap,
+      color: "text-yellow-600",
+      bgColor: "bg-yellow-50",
     },
     {
       title: "Eco-Fashion & Textiles",
       description: "Sustainable fashion, organic textiles, and ethical clothing brands",
-      icon: "👕",
+      icon: Shirt,
+      color: "text-pink-600",
+      bgColor: "bg-pink-50",
     },
   ];
 
@@ -181,15 +193,20 @@ const PremiumIndex = () => {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {sectors.map((sector, index) => (
-              <div key={index} className="card-premium hover-lift group cursor-pointer">
-                <div className="text-5xl mb-4">{sector.icon}</div>
-                <h3 className="text-xl font-semibold mb-3 group-hover:text-primary transition-colors">
-                  {sector.title}
-                </h3>
-                <p className="text-muted-foreground">{sector.description}</p>
-              </div>
-            ))}
+            {sectors.map((sector, index) => {
+              const IconComponent = sector.icon;
+              return (
+                <div key={index} className="card-premium hover-lift group cursor-pointer">
+                  <div className={`w-16 h-16 rounded-2xl ${sector.bgColor} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                    <IconComponent className={`h-8 w-8 ${sector.color}`} />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-3 group-hover:text-primary transition-colors">
+                    {sector.title}
+                  </h3>
+                  <p className="text-muted-foreground">{sector.description}</p>
+                </div>
+              );
+            })}
           </div>
 
           <div className="text-center mt-12">
