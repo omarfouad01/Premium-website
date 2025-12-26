@@ -72,13 +72,15 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   return (
     <div className="min-h-screen bg-white">
       {/* Sidebar */}
-      <aside className="fixed left-0 top-0 h-full w-64 bg-gradient-to-b from-primary to-primary/90 text-white border-r border-primary/20 shadow-xl">
-        <div className="p-6 border-b border-white/10">
+      <aside className="fixed left-0 top-0 h-full w-64 bg-gradient-to-b from-primary to-primary/90 text-white border-r border-primary/20 shadow-xl flex flex-col">
+        {/* Header - Fixed */}
+        <div className="p-6 border-b border-white/10 flex-shrink-0">
           <h1 className="text-2xl font-bold tracking-tight">Premium Admin</h1>
           <p className="text-sm text-white/70 mt-1 font-light">Green Life Expo</p>
         </div>
 
-        <nav className="px-3 py-4 space-y-1">
+        {/* Navigation - Scrollable */}
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30">
           {menuItems.map((item) => (
             <Link
               key={item.path}
@@ -95,7 +97,8 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           ))}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10 bg-primary/50 backdrop-blur-sm">
+        {/* Footer - Fixed */}
+        <div className="flex-shrink-0 p-4 border-t border-white/10 bg-primary/50 backdrop-blur-sm">
           <div className="mb-3 px-3">
             <p className="text-sm font-medium text-white truncate">{user.email}</p>
             <p className="text-xs text-white/60 mt-0.5">Administrator</p>
