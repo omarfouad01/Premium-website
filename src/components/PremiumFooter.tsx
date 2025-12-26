@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Facebook, Instagram, Linkedin, Mail, MapPin, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const PremiumFooter = () => {
+  const { t, isRTL } = useLanguage();
   const [settings, setSettings] = useState({
     contact_address: "Cairo International Exhibition Center, El Nasr Road, Nasr City, Cairo, Egypt",
     contact_phone: "+20 123 456 7890",
@@ -52,18 +54,18 @@ const PremiumFooter = () => {
     <footer className="bg-primary text-primary-foreground">
       {/* Main Footer */}
       <div className="container-premium py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-12">
+        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-12 ${isRTL ? 'text-right' : 'text-left'}`}>
           {/* Brand Column */}
           <div className="lg:col-span-4 space-y-6">
             <img
               src="/images/green_life_expo_logo_variations_20251225134629_1.webp"
               alt="Green Life Expo"
-              className="h-14 w-auto brightness-0 invert"
+              className={`h-14 w-auto brightness-0 invert ${isRTL ? 'mr-auto' : ''}`}
             />
             <p className="text-primary-foreground/80 leading-relaxed max-w-sm">
-              Egypt's leading platform for sustainable living, organic products, and green innovation.
+              {t("footer_description", "Egypt's leading platform for sustainable living, organic products, and green innovation.")}
             </p>
-            <div className="flex gap-4">
+            <div className={`flex gap-4 ${isRTL ? 'flex-row-reverse justify-end' : ''}`}>
               {settings.social_facebook && (
                 <a
                   href={settings.social_facebook}
@@ -102,26 +104,26 @@ const PremiumFooter = () => {
 
           {/* Quick Links */}
           <div className="lg:col-span-2">
-            <h3 className="font-semibold text-lg mb-6">Participate</h3>
+            <h3 className="font-semibold text-lg mb-6">{t("footer_participate", "Participate")}</h3>
             <ul className="space-y-3">
               <li>
                 <Link to="/exhibitors" className="text-primary-foreground/80 hover:text-primary-foreground transition-colors text-sm">
-                  Exhibit With Us
+                  {t("nav_exhibitors", "Exhibit With Us")}
                 </Link>
               </li>
               <li>
                 <Link to="/sponsors" className="text-primary-foreground/80 hover:text-primary-foreground transition-colors text-sm">
-                  Become a Sponsor
+                  {t("nav_sponsors", "Become a Sponsor")}
                 </Link>
               </li>
               <li>
                 <Link to="/visitors" className="text-primary-foreground/80 hover:text-primary-foreground transition-colors text-sm">
-                  Visit the Expo
+                  {t("nav_visitors", "Visit the Expo")}
                 </Link>
               </li>
               <li>
                 <Link to="/content" className="text-primary-foreground/80 hover:text-primary-foreground transition-colors text-sm">
-                  Content & Talks
+                  {t("nav_content", "Content & Talks")}
                 </Link>
               </li>
             </ul>
@@ -129,21 +131,21 @@ const PremiumFooter = () => {
 
           {/* Explore */}
           <div className="lg:col-span-2">
-            <h3 className="font-semibold text-lg mb-6">Explore</h3>
+            <h3 className="font-semibold text-lg mb-6">{t("footer_explore", "Explore")}</h3>
             <ul className="space-y-3">
               <li>
                 <Link to="/about" className="text-primary-foreground/80 hover:text-primary-foreground transition-colors text-sm">
-                  About Us
+                  {t("nav_about", "About Us")}
                 </Link>
               </li>
               <li>
                 <Link to="/sectors" className="text-primary-foreground/80 hover:text-primary-foreground transition-colors text-sm">
-                  Sectors
+                  {t("nav_sectors", "Sectors")}
                 </Link>
               </li>
               <li>
                 <Link to="/contact" className="text-primary-foreground/80 hover:text-primary-foreground transition-colors text-sm">
-                  Contact
+                  {t("nav_contact", "Contact")}
                 </Link>
               </li>
             </ul>
@@ -151,21 +153,21 @@ const PremiumFooter = () => {
 
           {/* Contact */}
           <div className="lg:col-span-4">
-            <h3 className="font-semibold text-lg mb-6">Get in Touch</h3>
+            <h3 className="font-semibold text-lg mb-6">{t("footer_get_in_touch", "Get in Touch")}</h3>
             <ul className="space-y-4">
-              <li className="flex items-start gap-3 text-sm">
+              <li className={`flex items-start gap-3 text-sm ${isRTL ? 'flex-row-reverse' : ''}`}>
                 <MapPin className="h-5 w-5 mt-0.5 flex-shrink-0 text-primary-foreground/60" />
                 <span className="text-primary-foreground/80">
                   {settings.contact_address}
                 </span>
               </li>
-              <li className="flex items-center gap-3 text-sm">
+              <li className={`flex items-center gap-3 text-sm ${isRTL ? 'flex-row-reverse' : ''}`}>
                 <Phone className="h-5 w-5 flex-shrink-0 text-primary-foreground/60" />
                 <a href={`tel:${settings.contact_phone.replace(/\s/g, '')}`} className="text-primary-foreground/80 hover:text-primary-foreground transition-colors">
                   {settings.contact_phone}
                 </a>
               </li>
-              <li className="flex items-center gap-3 text-sm">
+              <li className={`flex items-center gap-3 text-sm ${isRTL ? 'flex-row-reverse' : ''}`}>
                 <Mail className="h-5 w-5 flex-shrink-0 text-primary-foreground/60" />
                 <a href={`mailto:${settings.contact_email}`} className="text-primary-foreground/80 hover:text-primary-foreground transition-colors">
                   {settings.contact_email}
@@ -179,14 +181,14 @@ const PremiumFooter = () => {
       {/* Bottom Bar */}
       <div className="border-t border-primary-foreground/10">
         <div className="container-premium py-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-primary-foreground/60">
-            <p>&copy; {new Date().getFullYear()} Green Life Expo. All rights reserved.</p>
-            <div className="flex gap-6">
+          <div className={`flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-primary-foreground/60 ${isRTL ? 'md:flex-row-reverse' : ''}`}>
+            <p>&copy; {new Date().getFullYear()} Green Life Expo. {t("footer_rights", "All rights reserved")}</p>
+            <div className={`flex gap-6 ${isRTL ? 'flex-row-reverse' : ''}`}>
               <Link to="/privacy" className="hover:text-primary-foreground transition-colors">
-                Privacy Policy
+                {t("footer_privacy", "Privacy Policy")}
               </Link>
               <Link to="/terms" className="hover:text-primary-foreground transition-colors">
-                Terms of Service
+                {t("footer_terms", "Terms of Service")}
               </Link>
             </div>
           </div>

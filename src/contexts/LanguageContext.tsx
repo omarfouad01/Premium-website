@@ -16,6 +16,7 @@ interface LanguageContextType {
   t: (key: string, fallback?: string) => string;
   isRTL: boolean;
   translations: Translation[];
+  loading: boolean;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -23,25 +24,37 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   const [language, setLanguageState] = useState<Language>("en");
   const [translations, setTranslations] = useState<Translation[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadLanguageSettings();
-    loadTranslations();
+    initializeLanguage();
   }, []);
 
-  const loadLanguageSettings = async () => {
-    const { data } = await supabase
-      .from("site_settings_premium_20251225")
-      .select("setting_value")
-      .eq("setting_key", "site_language")
-      .single();
+  const initializeLanguage = async () => {
+    // Check localStorage first for user preference
+    const savedLang = localStorage.getItem("preferred_language") as Language;
+    
+    if (savedLang && (savedLang === "en" || savedLang === "ar")) {
+      setLanguageState(savedLang);
+      applyLanguage(savedLang);
+    } else {
+      // Load default from database
+      const { data } = await supabase
+        .from("site_settings_premium_20251225")
+        .select("setting_value")
+        .eq("setting_key", "site_language")
+        .single();
 
-    if (data?.setting_value) {
-      setLanguageState(data.setting_value as Language);
-      // Set HTML dir attribute
-      document.documentElement.dir = data.setting_value === "ar" ? "rtl" : "ltr";
-      document.documentElement.lang = data.setting_value;
+      if (data?.setting_value) {
+        const dbLang = data.setting_value as Language;
+        setLanguageState(dbLang);
+        applyLanguage(dbLang);
+      }
     }
+
+    // Load translations
+    await loadTranslations();
+    setLoading(false);
   };
 
   const loadTranslations = async () => {
@@ -54,10 +67,14 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const setLanguage = (lang: Language) => {
-    setLanguageState(lang);
+  const applyLanguage = (lang: Language) => {
     document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
     document.documentElement.lang = lang;
+  };
+
+  const setLanguage = (lang: Language) => {
+    setLanguageState(lang);
+    applyLanguage(lang);
     localStorage.setItem("preferred_language", lang);
   };
 
@@ -70,7 +87,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   const isRTL = language === "ar";
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t, isRTL, translations }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t, isRTL, translations, loading }}>
       {children}
     </LanguageContext.Provider>
   );

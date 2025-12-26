@@ -8,7 +8,7 @@ const PremiumHeader = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
-  const { language, setLanguage, t } = useLanguage();
+  const { language, setLanguage, t, isRTL } = useLanguage();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -35,8 +35,6 @@ const PremiumHeader = () => {
   const toggleLanguage = () => {
     const newLang = language === "en" ? "ar" : "en";
     setLanguage(newLang);
-    // Reload page to apply RTL/LTR changes
-    window.location.reload();
   };
 
   return (
@@ -48,7 +46,7 @@ const PremiumHeader = () => {
       }`}
     >
       <div className="container-premium">
-        <div className="flex items-center justify-between h-20">
+        <div className={`flex items-center justify-between h-20 ${isRTL ? 'flex-row-reverse' : ''}`}>
           {/* Logo */}
           <Link to="/" className="flex items-center">
             <img
@@ -59,7 +57,7 @@ const PremiumHeader = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-8">
+          <nav className={`hidden lg:flex items-center gap-8 ${isRTL ? 'flex-row-reverse' : ''}`}>
             {navItems.map((item) => (
               <Link
                 key={item.path}
@@ -76,13 +74,13 @@ const PremiumHeader = () => {
           </nav>
 
           {/* Language Switcher & Mobile Menu Button */}
-          <div className="flex items-center gap-4">
+          <div className={`flex items-center gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
             {/* Language Switcher Button */}
             <Button
               variant="outline"
               size="sm"
               onClick={toggleLanguage}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 hover:bg-primary hover:text-white transition-colors"
             >
               <Languages className="h-4 w-4" />
               <span className="font-semibold">
@@ -118,7 +116,7 @@ const PremiumHeader = () => {
                     isActive(item.path)
                       ? "text-primary bg-primary/5"
                       : "text-gray-700"
-                  }`}
+                  } ${isRTL ? 'text-right' : 'text-left'}`}
                 >
                   {item.name}
                 </Link>
