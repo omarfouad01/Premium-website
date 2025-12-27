@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PremiumHeader from "@/components/PremiumHeader";
 import PremiumFooter from "@/components/PremiumFooter";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,12 @@ const PremiumContact = () => {
   const { get, loading } = usePageContent("contact");
   const { t, isRTL } = useLanguage();
   
+  const [contactSettings, setContactSettings] = useState({
+    contact_email: "info@greenlifeexpo.com",
+    contact_phone: "+20 123 456 7890",
+    contact_address: "Cairo International Convention Center, El Nasr Road, Nasr City, Cairo, Egypt",
+  });
+  
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -62,6 +68,31 @@ const PremiumContact = () => {
   });
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    loadContactSettings();
+  }, []);
+
+  const loadContactSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("site_settings_premium_20251225")
+        .select("setting_key, setting_value")
+        .in("setting_key", ["contact_email", "contact_phone", "contact_address"]);
+
+      if (error) {
+        console.error("Error loading contact settings:", error);
+      } else if (data) {
+        const settingsObj: any = {};
+        data.forEach((item) => {
+          settingsObj[item.setting_key] = item.setting_value || "";
+        });
+        setContactSettings((prev) => ({ ...prev, ...settingsObj }));
+      }
+    } catch (err) {
+      console.error("Error in loadContactSettings:", err);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,17 +143,17 @@ const PremiumContact = () => {
     {
       icon: Mail,
       title: "Email Us",
-      details: ["info@greenlifeexpo.com", "exhibitors@greenlifeexpo.com"],
+      details: contactSettings.contact_email ? [contactSettings.contact_email] : ["info@greenlifeexpo.com"],
     },
     {
       icon: Phone,
       title: "Call Us",
-      details: ["+20 123 456 7890", "+20 123 456 7891"],
+      details: contactSettings.contact_phone ? [contactSettings.contact_phone] : ["+20 123 456 7890"],
     },
     {
       icon: MapPin,
       title: "Visit Us",
-      details: ["Cairo International Convention Center", "El Nasr Road, Nasr City, Cairo, Egypt"],
+      details: contactSettings.contact_address ? contactSettings.contact_address.split(",").map((s: string) => s.trim()) : ["Cairo International Convention Center", "El Nasr Road, Nasr City, Cairo, Egypt"],
     },
   ];
 
