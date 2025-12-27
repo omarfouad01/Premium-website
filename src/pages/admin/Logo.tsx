@@ -1,55 +1,39 @@
 import { useEffect, useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Upload, Image as ImageIcon } from "lucide-react";
-
-interface BrandingSetting {
-  id: string;
-  setting_key: string;
-  setting_value: string;
-  setting_type: string;
-  description: string;
-}
+import { Upload, Image as ImageIcon, Check } from "lucide-react";
 
 const AdminLogo = () => {
-  const [settings, setSettings] = useState<BrandingSetting[]>([]);
+  const [logoUrl, setLogoUrl] = useState("");
+  const [faviconUrl, setFaviconUrl] = useState("");
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingFavicon, setUploadingFavicon] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    loadSettings();
+    loadLogos();
   }, []);
 
-  const loadSettings = async () => {
-    const { data, error } = await supabase
+  const loadLogos = async () => {
+    const { data } = await supabase
       .from("site_settings_premium_20251225")
-      .select("*")
-      .eq("category", "branding");
+      .select("logo_url, favicon_url")
+      .limit(1)
+      .single();
 
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load branding settings",
-        variant: "destructive",
-      });
-    } else {
-      setSettings(data || []);
+    if (data) {
+      setLogoUrl(data.logo_url || "");
+      setFaviconUrl(data.favicon_url || "");
     }
     setLoading(false);
   };
 
-  const handleChange = (key: string, value: string) => {
-    setSettings(settings.map((s) => (s.setting_key === key ? { ...s, setting_value: value } : s)));
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, settingKey: string) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -63,26 +47,26 @@ const AdminLogo = () => {
       return;
     }
 
-    // Validate file size (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
       toast({
         title: "Error",
-        description: "File size must be less than 2MB",
+        description: "File size must be less than 5MB",
         variant: "destructive",
       });
       return;
     }
 
-    setUploading(true);
+    setUploadingLogo(true);
 
     try {
+      // Upload to Supabase Storage
       const fileExt = file.name.split(".").pop();
-      const fileName = `${settingKey}_${Date.now()}.${fileExt}`;
+      const fileName = `logo-${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
-        .from("logos")
+        .from("premium_logos")
         .upload(filePath, file, {
           cacheControl: "3600",
           upsert: true,
@@ -91,61 +75,121 @@ const AdminLogo = () => {
       if (uploadError) throw uploadError;
 
       // Get public URL
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("logos").getPublicUrl(filePath);
+      const { data: urlData } = supabase.storage
+        .from("premium_logos")
+        .getPublicUrl(filePath);
 
-      // Update setting
-      handleChange(settingKey, publicUrl);
+      const publicUrl = urlData.publicUrl;
 
+      // Update database
+      const { error: updateError } = await supabase
+        .from("site_settings_premium_20251225")
+        .update({ logo_url: publicUrl })
+        .eq("id", (await supabase.from("site_settings_premium_20251225").select("id").limit(1).single()).data?.id);
+
+      if (updateError) throw updateError;
+
+      setLogoUrl(publicUrl);
       toast({
         title: "Success",
-        description: "Image uploaded successfully",
+        description: "Logo uploaded successfully",
       });
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to upload image",
+        description: error.message || "Failed to upload logo",
         variant: "destructive",
       });
     } finally {
-      setUploading(false);
+      setUploadingLogo(false);
     }
   };
 
-  const handleSave = async () => {
-    setSaving(true);
+  const handleFaviconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    for (const setting of settings) {
-      const { error } = await supabase
-        .from("site_settings_premium_20251225")
-        .update({
-          setting_value: setting.setting_value,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", setting.id);
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Error",
+        description: "Please upload an image file",
+        variant: "destructive",
+      });
+      return;
+    }
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update settings",
-          variant: "destructive",
+    // Validate file size (max 1MB for favicon)
+    if (file.size > 1 * 1024 * 1024) {
+      toast({
+        title: "Error",
+        description: "Favicon size must be less than 1MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingFavicon(true);
+
+    try {
+      // Upload to Supabase Storage
+      const fileExt = file.name.split(".").pop();
+      const fileName = `favicon-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("premium_logos")
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: true,
         });
-        setSaving(false);
-        return;
-      }
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("premium_logos")
+        .getPublicUrl(filePath);
+
+      const publicUrl = urlData.publicUrl;
+
+      // Update database
+      const { error: updateError } = await supabase
+        .from("site_settings_premium_20251225")
+        .update({ favicon_url: publicUrl })
+        .eq("id", (await supabase.from("site_settings_premium_20251225").select("id").limit(1).single()).data?.id);
+
+      if (updateError) throw updateError;
+
+      setFaviconUrl(publicUrl);
+      
+      // Update favicon in document
+      updateFaviconInDocument(publicUrl);
+      
+      toast({
+        title: "Success",
+        description: "Favicon uploaded successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to upload favicon",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingFavicon(false);
     }
-
-    toast({
-      title: "Success",
-      description: "Branding settings updated successfully. Refresh the website to see changes.",
-    });
-
-    setSaving(false);
   };
 
-  const getSetting = (key: string) => {
-    return settings.find((s) => s.setting_key === key);
+  const updateFaviconInDocument = (url: string) => {
+    // Update favicon link in document head
+    let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
+    }
+    link.href = url;
   };
 
   if (loading) {
@@ -158,185 +202,157 @@ const AdminLogo = () => {
     );
   }
 
-  const logoSetting = getSetting("logo_url");
-  const logoAltSetting = getSetting("logo_alt_text");
-  const faviconSetting = getSetting("favicon_url");
-
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Logo & Branding</h1>
-            <p className="text-muted-foreground mt-2">
-              Manage your website logo, favicon, and branding assets
-            </p>
-          </div>
-          <Button onClick={handleSave} disabled={saving}>
-            <Save className="h-4 w-4 mr-2" />
-            {saving ? "Saving..." : "Save Changes"}
-          </Button>
+        <div>
+          <h1 className="text-3xl font-bold">Logo & Branding</h1>
+          <p className="text-muted-foreground mt-2">
+            Upload and manage your website logo and favicon
+          </p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Main Logo */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ImageIcon className="h-5 w-5" />
-                Main Website Logo
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {logoSetting && (
-                <>
-                  <div className="space-y-2">
-                    <Label>Current Logo</Label>
-                    <div className="border rounded-lg p-4 bg-accent/50 flex items-center justify-center min-h-[150px]">
-                      <img
-                        src={logoSetting.setting_value}
-                        alt="Current Logo"
-                        className="max-h-32 max-w-full object-contain"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="logo_upload">Upload New Logo</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="logo_upload"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleFileUpload(e, "logo_url")}
-                        disabled={uploading}
-                      />
-                      <Button variant="outline" disabled={uploading} asChild>
-                        <label htmlFor="logo_upload" className="cursor-pointer">
-                          <Upload className="h-4 w-4 mr-2" />
-                          {uploading ? "Uploading..." : "Browse"}
-                        </label>
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Recommended: PNG or SVG format, max 2MB
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="logo_url">Logo URL (or paste URL)</Label>
-                    <Input
-                      id="logo_url"
-                      value={logoSetting.setting_value}
-                      onChange={(e) => handleChange("logo_url", e.target.value)}
-                      placeholder="/images/logo.png"
-                    />
-                  </div>
-                </>
-              )}
-
-              {logoAltSetting && (
-                <div className="space-y-2">
-                  <Label htmlFor="logo_alt_text">Logo Alt Text (for accessibility)</Label>
-                  <Input
-                    id="logo_alt_text"
-                    value={logoAltSetting.setting_value}
-                    onChange={(e) => handleChange("logo_alt_text", e.target.value)}
-                    placeholder="Green Life Expo Logo"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Describe your logo for screen readers and SEO
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Favicon */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ImageIcon className="h-5 w-5" />
-                Favicon
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {faviconSetting && (
-                <>
-                  <div className="space-y-2">
-                    <Label>Current Favicon</Label>
-                    <div className="border rounded-lg p-4 bg-accent/50 flex items-center justify-center min-h-[100px]">
-                      <img
-                        src={faviconSetting.setting_value}
-                        alt="Current Favicon"
-                        className="h-16 w-16 object-contain"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="favicon_upload">Upload New Favicon</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="favicon_upload"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleFileUpload(e, "favicon_url")}
-                        disabled={uploading}
-                      />
-                      <Button variant="outline" disabled={uploading} asChild>
-                        <label htmlFor="favicon_upload" className="cursor-pointer">
-                          <Upload className="h-4 w-4 mr-2" />
-                          {uploading ? "Uploading..." : "Browse"}
-                        </label>
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Recommended: 32x32px or 64x64px, ICO or PNG format
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="favicon_url">Favicon URL (or paste URL)</Label>
-                    <Input
-                      id="favicon_url"
-                      value={faviconSetting.setting_value}
-                      onChange={(e) => handleChange("favicon_url", e.target.value)}
-                      placeholder="/favicon.ico"
-                    />
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tips */}
+        {/* Main Logo Upload */}
         <Card>
           <CardHeader>
-            <CardTitle>💡 Logo Best Practices</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <ImageIcon className="h-5 w-5" />
+              Main Logo
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-2 gap-4 text-sm">
-              <div className="space-y-2">
-                <h4 className="font-semibold">Main Logo:</h4>
-                <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                  <li>Use transparent background (PNG or SVG)</li>
-                  <li>Recommended width: 200-400px</li>
-                  <li>Keep file size under 2MB</li>
-                  <li>Ensure good contrast on white background</li>
-                </ul>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <Label>Upload Logo</Label>
+              <p className="text-sm text-muted-foreground">
+                Upload your logo image (PNG, JPG, SVG, or WebP). Recommended size: 400x100px. Max file size: 5MB.
+              </p>
+              
+              <div className="flex items-center gap-4">
+                <input
+                  type="file"
+                  id="logo-upload"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                />
+                <Button
+                  onClick={() => document.getElementById("logo-upload")?.click()}
+                  disabled={uploadingLogo}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {uploadingLogo ? "Uploading..." : "Upload Logo"}
+                </Button>
+                {logoUrl && (
+                  <div className="flex items-center gap-2 text-sm text-green-600">
+                    <Check className="h-4 w-4" />
+                    Logo uploaded
+                  </div>
+                )}
               </div>
-              <div className="space-y-2">
-                <h4 className="font-semibold">Favicon:</h4>
-                <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                  <li>Use square format (32x32 or 64x64 pixels)</li>
-                  <li>Simple, recognizable design</li>
-                  <li>ICO format preferred for compatibility</li>
-                  <li>Test on different browsers</li>
-                </ul>
-              </div>
+
+              {/* Logo Preview */}
+              {logoUrl && (
+                <div className="space-y-2">
+                  <Label>Current Logo Preview</Label>
+                  <div className="p-6 bg-muted rounded-lg">
+                    <img
+                      src={logoUrl}
+                      alt="Logo Preview"
+                      className="h-16 w-auto"
+                    />
+                  </div>
+                  <div className="p-6 bg-gray-900 rounded-lg">
+                    <img
+                      src={logoUrl}
+                      alt="Logo Preview on Dark"
+                      className="h-16 w-auto brightness-0 invert"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Favicon Upload */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ImageIcon className="h-5 w-5" />
+              Favicon
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <Label>Upload Favicon</Label>
+              <p className="text-sm text-muted-foreground">
+                Upload your favicon (the small icon that appears in browser tabs). Recommended size: 32x32px or 64x64px. Max file size: 1MB.
+              </p>
+              
+              <div className="flex items-center gap-4">
+                <input
+                  type="file"
+                  id="favicon-upload"
+                  accept="image/*"
+                  onChange={handleFaviconUpload}
+                  className="hidden"
+                />
+                <Button
+                  onClick={() => document.getElementById("favicon-upload")?.click()}
+                  disabled={uploadingFavicon}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {uploadingFavicon ? "Uploading..." : "Upload Favicon"}
+                </Button>
+                {faviconUrl && (
+                  <div className="flex items-center gap-2 text-sm text-green-600">
+                    <Check className="h-4 w-4" />
+                    Favicon uploaded
+                  </div>
+                )}
+              </div>
+
+              {/* Favicon Preview */}
+              {faviconUrl && (
+                <div className="space-y-2">
+                  <Label>Current Favicon Preview</Label>
+                  <div className="flex items-center gap-4">
+                    <div className="p-4 bg-muted rounded-lg">
+                      <img
+                        src={faviconUrl}
+                        alt="Favicon Preview"
+                        className="h-8 w-8"
+                      />
+                    </div>
+                    <div className="p-4 bg-gray-900 rounded-lg">
+                      <img
+                        src={faviconUrl}
+                        alt="Favicon Preview on Dark"
+                        className="h-8 w-8"
+                      />
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      <p>Preview at actual size (32x32px)</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Usage Guidelines */}
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="p-6">
+            <h3 className="font-semibold mb-3 text-blue-900">Logo Usage Guidelines</h3>
+            <ul className="space-y-2 text-sm text-blue-800">
+              <li>• Logo appears in the header (top navigation) and footer of all pages</li>
+              <li>• Recommended logo format: PNG with transparent background or SVG</li>
+              <li>• Logo should be horizontal/landscape orientation for best results</li>
+              <li>• Favicon appears in browser tabs and bookmarks</li>
+              <li>• Favicon should be square (1:1 ratio) for best results</li>
+              <li>• Changes take effect immediately after upload</li>
+            </ul>
           </CardContent>
         </Card>
       </div>
