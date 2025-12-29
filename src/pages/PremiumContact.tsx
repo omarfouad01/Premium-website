@@ -49,38 +49,20 @@ const PremiumContact = () => {
   const { get, loading } = usePageContent("contact");
   const { t, isRTL } = useLanguage();
 
-  // Scroll to form on page load if coming from a redirect
+  // Scroll to top of page on load if coming from a redirect
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('scrollToForm') === 'true') {
-      // Multiple attempts to ensure scroll works
-      const scrollToForm = () => {
-        const formSection = document.getElementById('contact-form');
-        if (formSection) {
-          formSection.scrollIntoView({ 
-            behavior: 'smooth',
-            block: 'start'
-          });
-          return true;
-        }
-        return false;
+      // Scroll to the very top of the page
+      const scrollToTop = () => {
+        window.scrollTo({ 
+          top: 0, 
+          behavior: 'smooth' 
+        });
       };
       
       // Try immediately
-      if (!scrollToForm()) {
-        // Try after 100ms
-        setTimeout(() => {
-          if (!scrollToForm()) {
-            // Try after 300ms
-            setTimeout(() => {
-              if (!scrollToForm()) {
-                // Final attempt after 500ms
-                setTimeout(scrollToForm, 500);
-              }
-            }, 300);
-          }
-        }, 100);
-      }
+      scrollToTop();
       
       // Clear the URL parameter after scrolling
       setTimeout(() => {
