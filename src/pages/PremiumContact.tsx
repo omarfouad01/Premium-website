@@ -55,6 +55,14 @@ const PremiumContact = () => {
     contact_address: "Cairo International Convention Center, El Nasr Road, Nasr City, Cairo, Egypt",
   });
   
+  const [mapSettings, setMapSettings] = useState({
+    map_embed_url: "",
+    event_location: "Cairo International Convention Center",
+    map_latitude: "30.0444",
+    map_longitude: "31.2357",
+    map_zoom: "15",
+  });
+  
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -75,6 +83,7 @@ const PremiumContact = () => {
 
   const loadContactSettings = async () => {
     try {
+      // Load contact settings
       const { data, error } = await supabase
         .from("site_settings_premium_20251225")
         .select("setting_key, setting_value")
@@ -88,6 +97,22 @@ const PremiumContact = () => {
           settingsObj[item.setting_key] = item.setting_value || "";
         });
         setContactSettings((prev) => ({ ...prev, ...settingsObj }));
+      }
+
+      // Load map settings
+      const { data: mapData, error: mapError } = await supabase
+        .from("site_settings_premium_20251225")
+        .select("setting_key, setting_value")
+        .in("setting_key", ["map_embed_url", "event_location", "map_latitude", "map_longitude", "map_zoom"]);
+
+      if (mapError) {
+        console.error("Error loading map settings:", mapError);
+      } else if (mapData) {
+        const mapSettingsObj: any = {};
+        mapData.forEach((item) => {
+          mapSettingsObj[item.setting_key] = item.setting_value || "";
+        });
+        setMapSettings((prev) => ({ ...prev, ...mapSettingsObj }));
       }
     } catch (err) {
       console.error("Error in loadContactSettings:", err);
@@ -380,13 +405,13 @@ const PremiumContact = () => {
               Find Us
             </h2>
             <p className="text-lg text-muted-foreground">
-              Cairo International Convention Center, El Nasr Road, Nasr City, Cairo, Egypt
+              {mapSettings.event_location || contactSettings.contact_address}
             </p>
           </div>
 
           <div className="aspect-video rounded-2xl overflow-hidden shadow-xl">
             <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3452.6789!2d31.3!3d30.0!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzDCsDAwJzAwLjAiTiAzMcKwMTgnMDAuMCJF!5e0!3m2!1sen!2seg!4v1234567890"
+              src={mapSettings.map_embed_url || `https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3452.6789!2d${mapSettings.map_longitude}!3d${mapSettings.map_latitude}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2z${btoa(mapSettings.map_latitude + ',' + mapSettings.map_longitude)}!5e0!3m2!1sen!2seg!4v${Date.now()}&zoom=${mapSettings.map_zoom || 15}`}
               width="100%"
               height="100%"
               style={{ border: 0 }}
