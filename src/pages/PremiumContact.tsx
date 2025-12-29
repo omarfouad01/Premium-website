@@ -53,15 +53,40 @@ const PremiumContact = () => {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('scrollToForm') === 'true') {
-      setTimeout(() => {
+      // Multiple attempts to ensure scroll works
+      const scrollToForm = () => {
         const formSection = document.getElementById('contact-form');
         if (formSection) {
           formSection.scrollIntoView({ 
             behavior: 'smooth',
             block: 'start'
           });
+          return true;
         }
-      }, 100);
+        return false;
+      };
+      
+      // Try immediately
+      if (!scrollToForm()) {
+        // Try after 100ms
+        setTimeout(() => {
+          if (!scrollToForm()) {
+            // Try after 300ms
+            setTimeout(() => {
+              if (!scrollToForm()) {
+                // Final attempt after 500ms
+                setTimeout(scrollToForm, 500);
+              }
+            }, 300);
+          }
+        }, 100);
+      }
+      
+      // Clear the URL parameter after scrolling
+      setTimeout(() => {
+        const newUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, newUrl);
+      }, 1000);
     }
   }, []);
   
@@ -225,7 +250,7 @@ const PremiumContact = () => {
       </section>
 
       {/* Contact Form & Info */}
-      <section id="contact-form" className="section-premium bg-white">
+      <section id="contact-form" className="section-premium bg-white" style={{ scrollMarginTop: '2rem' }}>
         <div className="container-premium">
           <div className="grid lg:grid-cols-3 gap-12">
             {/* Contact Form */}
