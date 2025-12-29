@@ -5,6 +5,16 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Award, Globe, TrendingUp, Users, Mic, Camera, CheckCircle, Star } from "lucide-react";
 
 const PremiumSponsors = () => {
+  const scrollToPackages = () => {
+    const packagesSection = document.getElementById('packages');
+    if (packagesSection) {
+      packagesSection.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  };
+
   const benefits = [
     {
       icon: Globe,
@@ -163,8 +173,13 @@ const PremiumSponsors = () => {
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" asChild className="btn-premium btn-premium-outline">
-                <a href="#packages">View Packages</a>
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="btn-premium btn-premium-outline"
+                onClick={scrollToPackages}
+              >
+                View Packages
               </Button>
             </div>
           </div>
