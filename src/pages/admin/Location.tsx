@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Save, Info, Map } from "lucide-react";
+import { MapPin, Save, Info, Map, Navigation } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const AdminLocation = () => {
@@ -113,20 +113,37 @@ const AdminLocation = () => {
     return descriptions[key] || key;
   };
 
-  const handleMapClick = (event: any) => {
-    const lat = event.latLng.lat();
-    const lng = event.latLng.lng();
+  const handleMapClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    
+    // Convert click position to approximate coordinates
+    // This is a simplified conversion - for production, you'd want a proper map library
+    const centerLat = parseFloat(settings.map_latitude) || 30.0444;
+    const centerLng = parseFloat(settings.map_longitude) || 31.2357;
+    const zoom = parseFloat(settings.map_zoom) || 15;
+    
+    // Calculate offset from center (simplified)
+    const pixelOffsetX = x - rect.width / 2;
+    const pixelOffsetY = y - rect.height / 2;
+    
+    // Convert to degrees (rough approximation)
+    const degreesPerPixel = 0.01 / Math.pow(2, zoom - 10);
+    const newLng = centerLng + (pixelOffsetX * degreesPerPixel);
+    const newLat = centerLat - (pixelOffsetY * degreesPerPixel);
+    
     setSettings(prev => ({
       ...prev,
-      map_latitude: lat.toString(),
-      map_longitude: lng.toString(),
+      map_latitude: newLat.toFixed(6),
+      map_longitude: newLng.toFixed(6)
     }));
   };
 
   const generateGoogleMapsEmbed = () => {
     const { map_latitude, map_longitude, map_zoom } = settings;
     if (map_latitude && map_longitude) {
-      const embedUrl = `https://www.google.com/maps/embed/v1/place?key=YOUR_API_KEY&q=${map_latitude},${map_longitude}&zoom=${map_zoom || 15}`;
+      const embedUrl = `https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3453!2d${map_longitude}!3d${map_latitude}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2z${btoa(map_latitude + ',' + map_longitude)}!5e0!3m2!1sen!2seg!4v${Date.now()}&zoom=${map_zoom || 15}`;
       setSettings(prev => ({ ...prev, map_embed_url: embedUrl }));
     }
   };
@@ -218,29 +235,52 @@ const AdminLocation = () => {
               <Alert>
                 <Info className="h-4 w-4" />
                 <AlertDescription>
-                  Click on the map below to set the exact location. The pin will move to where you click.
+                  Click anywhere on the map below to move the pin to that location. The coordinates will update automatically.
                 </AlertDescription>
               </Alert>
 
-              {/* Map Container */}
+              {/* Interactive Map Container */}
               <div className="w-full h-64 bg-gray-100 rounded-lg border relative overflow-hidden">
-                <iframe
-                  src={`https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3453.123456789!2d${settings.map_longitude}!3d${settings.map_latitude}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzDCsDAyJzM5LjgiTiAzMcKwMTQnMDguNSJF!5e0!3m2!1sen!2seg!4v1640000000000!5m2!1sen!2seg&zoom=${settings.map_zoom || 15}`}
-                  width="100%"
-                  height="100%"
-                  style={{ border: 0 }}
-                  allowFullScreen
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  title="Location Map"
-                ></iframe>
-                <div className="absolute inset-0 bg-black bg-opacity-10 flex items-center justify-center">
-                  <div className="bg-white p-3 rounded-lg shadow-lg text-center">
-                    <MapPin className="h-6 w-6 text-red-500 mx-auto mb-2" />
-                    <p className="text-sm font-medium">Click to Set Location</p>
-                    <p className="text-xs text-gray-500">
-                      Lat: {parseFloat(settings.map_latitude).toFixed(4)}, 
-                      Lng: {parseFloat(settings.map_longitude).toFixed(4)}
+                <div 
+                  className="w-full h-full cursor-crosshair relative"
+                  onClick={handleMapClick}
+                >
+                  {/* Google Maps iframe as background */}
+                  <iframe
+                    src={`https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3453!2d${settings.map_longitude}!3d${settings.map_latitude}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2z${btoa((settings.map_latitude || '30.0444') + ',' + (settings.map_longitude || '31.2357'))}!5e0!3m2!1sen!2seg!4v${Date.now()}&zoom=${settings.map_zoom || 15}`}
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0, pointerEvents: 'none' }}
+                    allowFullScreen
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    title="Location Map"
+                  ></iframe>
+                  
+                  {/* Transparent clickable overlay */}
+                  <div className="absolute inset-0 bg-transparent hover:bg-blue-500 hover:bg-opacity-10 transition-colors" />
+                  
+                  {/* Center pin indicator */}
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+                    <div className="relative">
+                      <MapPin className="h-8 w-8 text-red-500 drop-shadow-lg animate-bounce" />
+                      <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-red-500 rounded-full opacity-30"></div>
+                    </div>
+                  </div>
+                  
+                  {/* Coordinates display */}
+                  <div className="absolute bottom-2 left-2 bg-white bg-opacity-95 px-3 py-2 rounded-lg shadow-lg border">
+                    <p className="text-xs font-medium text-gray-700">
+                      📍 Lat: {parseFloat(settings.map_latitude || '0').toFixed(4)}<br/>
+                      📍 Lng: {parseFloat(settings.map_longitude || '0').toFixed(4)}
+                    </p>
+                  </div>
+                  
+                  {/* Click instruction */}
+                  <div className="absolute top-2 left-2 bg-blue-500 text-white px-3 py-2 rounded-lg shadow-lg">
+                    <p className="text-xs font-medium flex items-center gap-1">
+                      <Navigation className="h-3 w-3" />
+                      Click to move pin
                     </p>
                   </div>
                 </div>
@@ -297,40 +337,11 @@ const AdminLocation = () => {
                 className="w-full"
               >
                 <Map className="h-4 w-4 mr-2" />
-                Update Map Preview
+                Generate Embed URL
               </Button>
             </CardContent>
           </Card>
         </div>
-
-        {/* Map Embed URL */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Map Embed Settings</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="map_embed_url">Google Maps Embed URL</Label>
-              <Textarea
-                id="map_embed_url"
-                value={settings.map_embed_url}
-                onChange={(e) =>
-                  setSettings({ ...settings, map_embed_url: e.target.value })
-                }
-                placeholder="Paste Google Maps embed URL here or use the coordinates above"
-                className="min-h-[100px] font-mono text-sm"
-              />
-            </div>
-            
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertDescription>
-                You can either use the coordinates above to generate a map, or paste a custom Google Maps embed URL. 
-                To get a custom embed URL: Go to Google Maps → Find your location → Share → Embed a map → Copy HTML.
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-        </Card>
 
         {/* Quick Location Presets */}
         <Card>
@@ -381,6 +392,35 @@ const AdminLocation = () => {
                 New Cairo
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Map Embed URL */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Generated Map Embed URL</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="map_embed_url">Google Maps Embed URL</Label>
+              <Textarea
+                id="map_embed_url"
+                value={settings.map_embed_url}
+                onChange={(e) =>
+                  setSettings({ ...settings, map_embed_url: e.target.value })
+                }
+                placeholder="Auto-generated from coordinates above, or paste custom embed URL"
+                className="min-h-[100px] font-mono text-sm"
+              />
+            </div>
+            
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                The embed URL is automatically generated from your coordinates. You can also paste a custom Google Maps embed URL here.
+                To get a custom URL: Go to Google Maps → Find location → Share → Embed a map → Copy HTML.
+              </AlertDescription>
+            </Alert>
           </CardContent>
         </Card>
       </div>
