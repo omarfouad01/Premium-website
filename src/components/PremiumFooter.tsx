@@ -15,6 +15,7 @@ const PremiumFooter = () => {
     social_instagram: "",
     social_linkedin: "",
   });
+  const [partners, setPartners] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -55,6 +56,19 @@ const PremiumFooter = () => {
           settingsObj[item.setting_key] = item.setting_value || "";
         });
         setSettings((prev) => ({ ...prev, ...settingsObj }));
+      }
+
+      // Load partners
+      const { data: partnersData, error: partnersError } = await supabase
+        .from("partners_premium_20251230")
+        .select("*")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+
+      if (partnersError) {
+        console.error("Error loading partners:", partnersError);
+      } else {
+        setPartners(partnersData || []);
       }
     } catch (err) {
       console.error("Error in loadSettings:", err);
@@ -190,6 +204,46 @@ const PremiumFooter = () => {
           </div>
         </div>
       </div>
+
+      {/* Partners Section */}
+      {partners.length > 0 && (
+        <div className="border-t border-primary-foreground/10">
+          <div className="container-premium py-8">
+            <div className="text-center">
+              <h3 className="text-lg font-semibold mb-6 text-primary-foreground/90">
+                {t("footer_partners", "Our Partners")}
+              </h3>
+              <div className={`flex flex-wrap items-center justify-center gap-8 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                {partners.map((partner) => (
+                  <div key={partner.id} className="flex-shrink-0">
+                    {partner.website_url ? (
+                      <a
+                        href={partner.website_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block hover:opacity-80 transition-opacity"
+                        title={partner.name}
+                      >
+                        <img
+                          src={partner.logo_url}
+                          alt={partner.name}
+                          className="h-12 w-auto max-w-[120px] object-contain filter brightness-0 invert opacity-70 hover:opacity-90 transition-opacity"
+                        />
+                      </a>
+                    ) : (
+                      <img
+                        src={partner.logo_url}
+                        alt={partner.name}
+                        className="h-12 w-auto max-w-[120px] object-contain filter brightness-0 invert opacity-70"
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Bar */}
       <div className="border-t border-primary-foreground/10">

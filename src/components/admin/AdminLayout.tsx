@@ -17,7 +17,8 @@ import {
   Users,
   MapPin,
   Languages,
-  BookOpen
+  BookOpen,
+  Handshake
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -64,6 +65,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     { icon: BookOpen, label: "Blog Management", path: "/admin/blogs" },
     { icon: Mail, label: "Submissions", path: "/admin/submissions" },
     { icon: Users, label: "User Management", path: "/admin/users" },
+    { icon: Handshake, label: "Partners Management", path: "/admin/partners" },
     { icon: Languages, label: "Language & Translations", path: "/admin/language" },
   ];
 
