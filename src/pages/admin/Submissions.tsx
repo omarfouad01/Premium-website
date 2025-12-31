@@ -6,7 +6,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Phone, Calendar, CheckCircle2, Users, Building, MapPin, Tag, ToggleLeft, ToggleRight } from "lucide-react";
+import { 
+  Mail, 
+  Phone, 
+  Calendar, 
+  CheckCircle2, 
+  Users, 
+  Building, 
+  MapPin, 
+  Tag, 
+  ToggleLeft, 
+  ToggleRight,
+  Download,
+  FileSpreadsheet,
+  Eye,
+  EyeOff
+} from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -48,122 +63,280 @@ const AdminSubmissions = () => {
   const [visitorRegEnabled, setVisitorRegEnabled] = useState(true);
   const [closedMessageEn, setClosedMessageEn] = useState("");
   const [closedMessageAr, setClosedMessageAr] = useState("");
-  const [savingSettings, setSavingSettings] = useState(false);
+  const [activeTab, setActiveTab] = useState("contact");
+  const [submissionCounts, setSubmissionCounts] = useState({
+    contact: 0,
+    visitors: 0,
+    exhibitors: 0,
+    sponsors: 0
+  });
   const { toast } = useToast();
 
   useEffect(() => {
-    loadData();
+    loadSubmissions();
+    loadVisitorSettings();
   }, []);
 
-  const loadData = async () => {
+  const loadSubmissions = async () => {
     setLoading(true);
-    
-    // Load visitor registration settings
-    const settingsRes = await supabase
-      .from("site_settings_premium_20251225")
-      .select("visitor_registration_enabled, visitor_registration_closed_message, visitor_registration_closed_message_ar")
-      .limit(1)
-      .single();
-    
-    if (settingsRes.data) {
-      setVisitorRegEnabled(settingsRes.data.visitor_registration_enabled ?? true);
-      setClosedMessageEn(settingsRes.data.visitor_registration_closed_message || "");
-      setClosedMessageAr(settingsRes.data.visitor_registration_closed_message_ar || "");
-    }
-    
-    const [contactRes, visitorRes] = await Promise.all([
-      supabase
+    try {
+      // Load contact submissions
+      const { data: contactData, error: contactError } = await supabase
         .from("contact_submissions_premium_20251225")
         .select("*")
-        .order("created_at", { ascending: false }),
-      supabase
+        .order("created_at", { ascending: false });
+
+      if (contactError) throw contactError;
+      setContactSubmissions(contactData || []);
+
+      // Load visitor registrations
+      const { data: visitorData, error: visitorError } = await supabase
         .from("visitor_registrations_premium_20251225")
         .select("*")
-        .order("created_at", { ascending: false }),
-    ]);
+        .order("created_at", { ascending: false });
 
-    if (contactRes.error) {
+      if (visitorError) throw visitorError;
+      setVisitorRegistrations(visitorData || []);
+
+      // Update counts
+      setSubmissionCounts({
+        contact: contactData?.length || 0,
+        visitors: visitorData?.length || 0,
+        exhibitors: contactData?.filter(s => s.inquiry_type === "exhibitor").length || 0,
+        sponsors: contactData?.filter(s => s.inquiry_type === "sponsor").length || 0
+      });
+
+    } catch (error: any) {
       toast({
-        title: "Error",
-        description: "Failed to load contact submissions",
+        title: "Error loading submissions",
+        description: error.message,
         variant: "destructive",
       });
-    } else {
-      setContactSubmissions(contactRes.data || []);
-    }
-
-    if (visitorRes.error) {
-      toast({
-        title: "Error",
-        description: "Failed to load visitor registrations",
-        variant: "destructive",
-      });
-    } else {
-      setVisitorRegistrations(visitorRes.data || []);
-    }
-
-    setLoading(false);
-  };
-
-  const markContactAsRead = async (id: string) => {
-    const { error } = await supabase
-      .from("contact_submissions_premium_20251225")
-      .update({ is_read: true })
-      .eq("id", id);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update submission",
-        variant: "destructive",
-      });
-    } else {
-      loadData();
+    } finally {
+      setLoading(false);
     }
   };
 
-  const saveVisitorRegistrationSettings = async () => {
-    setSavingSettings(true);
-    
-    const { error } = await supabase
-      .from("site_settings_premium_20251225")
-      .update({
-        visitor_registration_enabled: visitorRegEnabled,
-        visitor_registration_closed_message: closedMessageEn,
-        visitor_registration_closed_message_ar: closedMessageAr,
-      })
-      .eq("id", (await supabase.from("site_settings_premium_20251225").select("id").limit(1).single()).data?.id);
-    
-    if (error) {
+  const loadVisitorSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("site_settings_premium_20251225")
+        .select("setting_key, setting_value")
+        .in("setting_key", [
+          "visitor_registration_enabled",
+          "visitor_registration_closed_message",
+          "visitor_registration_closed_message_ar"
+        ]);
+
+      if (error) throw error;
+
+      const settings: any = {};
+      data?.forEach((item) => {
+        settings[item.setting_key] = item.setting_value;
+      });
+
+      setVisitorRegEnabled(settings.visitor_registration_enabled === "true");
+      setClosedMessageEn(settings.visitor_registration_closed_message || "");
+      setClosedMessageAr(settings.visitor_registration_closed_message_ar || "");
+    } catch (error: any) {
+      console.error("Error loading visitor settings:", error);
+    }
+  };
+
+  const toggleReadStatus = async (type: "contact" | "visitor", id: string, currentStatus: boolean) => {
+    try {
+      const table = type === "contact" 
+        ? "contact_submissions_premium_20251225" 
+        : "visitor_registrations_premium_20251225";
+
+      const { error } = await supabase
+        .from(table)
+        .update({ is_read: !currentStatus })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      // Update local state
+      if (type === "contact") {
+        setContactSubmissions(prev =>
+          prev.map(sub => sub.id === id ? { ...sub, is_read: !currentStatus } : sub)
+        );
+      } else {
+        setVisitorRegistrations(prev =>
+          prev.map(sub => sub.id === id ? { ...sub, is_read: !currentStatus } : sub)
+        );
+      }
+
+      toast({
+        title: "Success",
+        description: `Submission marked as ${!currentStatus ? "read" : "unread"}`,
+      });
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to save settings",
+        description: error.message,
         variant: "destructive",
       });
-    } else {
+    }
+  };
+
+  const downloadExcel = (type: "contact" | "visitors" | "exhibitors" | "sponsors") => {
+    let data: any[] = [];
+    let filename = "";
+
+    switch (type) {
+      case "contact":
+        data = contactSubmissions.map(sub => ({
+          Name: sub.name,
+          Email: sub.email,
+          Phone: sub.phone || "",
+          Company: sub.company || "",
+          Title: sub.title || "",
+          Country: sub.country || "",
+          "Country Code": sub.country_code || "",
+          "Inquiry Type": sub.inquiry_type,
+          Message: sub.message,
+          "Read Status": sub.is_read ? "Read" : "Unread",
+          "Submitted At": new Date(sub.created_at).toLocaleString()
+        }));
+        filename = "contact_submissions.csv";
+        break;
+
+      case "visitors":
+        data = visitorRegistrations.map(sub => ({
+          Name: sub.name,
+          Email: sub.email,
+          Phone: sub.phone || "",
+          Company: sub.company || "",
+          "Job Title": sub.job_title || "",
+          Country: sub.country || "",
+          Interests: Array.isArray(sub.interests) ? sub.interests.join(", ") : "",
+          "Visit Date": sub.visit_date || "",
+          "How Heard": sub.how_heard || "",
+          "Read Status": sub.is_read ? "Read" : "Unread",
+          "Registered At": new Date(sub.created_at).toLocaleString()
+        }));
+        filename = "visitor_registrations.csv";
+        break;
+
+      case "exhibitors":
+        data = contactSubmissions
+          .filter(sub => sub.inquiry_type === "exhibitor")
+          .map(sub => ({
+            Name: sub.name,
+            Email: sub.email,
+            Phone: sub.phone || "",
+            Company: sub.company || "",
+            Title: sub.title || "",
+            Country: sub.country || "",
+            Message: sub.message,
+            "Read Status": sub.is_read ? "Read" : "Unread",
+            "Submitted At": new Date(sub.created_at).toLocaleString()
+          }));
+        filename = "exhibitor_inquiries.csv";
+        break;
+
+      case "sponsors":
+        data = contactSubmissions
+          .filter(sub => sub.inquiry_type === "sponsor")
+          .map(sub => ({
+            Name: sub.name,
+            Email: sub.email,
+            Phone: sub.phone || "",
+            Company: sub.company || "",
+            Title: sub.title || "",
+            Country: sub.country || "",
+            Message: sub.message,
+            "Read Status": sub.is_read ? "Read" : "Unread",
+            "Submitted At": new Date(sub.created_at).toLocaleString()
+          }));
+        filename = "sponsor_inquiries.csv";
+        break;
+    }
+
+    if (data.length === 0) {
+      toast({
+        title: "No data",
+        description: "No submissions found for this category",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Convert to CSV
+    const headers = Object.keys(data[0]);
+    const csvContent = [
+      headers.join(","),
+      ...data.map(row => 
+        headers.map(header => {
+          const value = row[header] || "";
+          // Escape commas and quotes in CSV
+          return `"${value.toString().replace(/"/g, '""')}"`;
+        }).join(",")
+      )
+    ].join("\n");
+
+    // Download file
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Success",
+      description: `${filename} downloaded successfully`,
+    });
+  };
+
+  const updateVisitorSettings = async () => {
+    try {
+      const updates = [
+        {
+          setting_key: "visitor_registration_enabled",
+          setting_value: visitorRegEnabled.toString(),
+          setting_type: "boolean",
+          category: "visitor",
+          description: "Enable/disable visitor registration"
+        },
+        {
+          setting_key: "visitor_registration_closed_message",
+          setting_value: closedMessageEn,
+          setting_type: "text",
+          category: "visitor",
+          description: "Closed message in English"
+        },
+        {
+          setting_key: "visitor_registration_closed_message_ar",
+          setting_value: closedMessageAr,
+          setting_type: "text",
+          category: "visitor",
+          description: "Closed message in Arabic"
+        }
+      ];
+
+      for (const update of updates) {
+        const { error } = await supabase
+          .from("site_settings_premium_20251225")
+          .upsert(update, { onConflict: "setting_key" });
+
+        if (error) throw error;
+      }
+
       toast({
         title: "Success",
         description: "Visitor registration settings updated",
       });
-    }
-    
-    setSavingSettings(false);
-  };
-
-  const markVisitorAsRead = async (id: string) => {
-    const { error } = await supabase
-      .from("visitor_registrations_premium_20251225")
-      .update({ is_read: true })
-      .eq("id", id);
-
-    if (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to update registration",
+        description: error.message,
         variant: "destructive",
       });
-    } else {
-      loadData();
     }
   };
 
@@ -187,134 +360,122 @@ const AdminSubmissions = () => {
     );
   }
 
-  const unreadContact = contactSubmissions.filter((s) => !s.is_read).length;
-  const unreadVisitor = visitorRegistrations.filter((v) => !v.is_read).length;
-
   return (
     <AdminLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Submissions & Registrations</h1>
+          <h1 className="text-3xl font-bold">Submissions Management</h1>
           <p className="text-muted-foreground mt-2">
-            Manage contact submissions and visitor registrations
+            Manage all website submissions and registrations
           </p>
         </div>
 
-        <Tabs defaultValue="contact" className="space-y-4">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="contact" className="relative">
-              Contact Forms
-              {unreadContact > 0 && (
-                <Badge className="ml-2 bg-red-500">{unreadContact}</Badge>
-              )}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="contact" className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Contact ({submissionCounts.contact})
             </TabsTrigger>
-            <TabsTrigger value="visitors" className="relative">
-              Visitor Registrations
-              {unreadVisitor > 0 && (
-                <Badge className="ml-2 bg-red-500">{unreadVisitor}</Badge>
-              )}
+            <TabsTrigger value="visitors" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Visitors ({submissionCounts.visitors})
+            </TabsTrigger>
+            <TabsTrigger value="exhibitors" className="flex items-center gap-2">
+              <Building className="h-4 w-4" />
+              Exhibitors ({submissionCounts.exhibitors})
+            </TabsTrigger>
+            <TabsTrigger value="sponsors" className="flex items-center gap-2">
+              <Tag className="h-4 w-4" />
+              Sponsors ({submissionCounts.sponsors})
             </TabsTrigger>
           </TabsList>
 
-          {/* Contact Submissions */}
-          <TabsContent value="contact" className="space-y-4">
+          {/* Contact Submissions Tab */}
+          <TabsContent value="contact">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <Mail className="h-5 w-5" />
-                  Contact Submissions ({contactSubmissions.length})
+                  Contact Form Submissions ({submissionCounts.contact})
                 </CardTitle>
+                <Button onClick={() => downloadExcel("contact")} variant="outline">
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Excel
+                </Button>
               </CardHeader>
               <CardContent>
                 {contactSubmissions.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">
-                    No contact submissions yet
-                  </p>
+                  <div className="text-center py-8 text-muted-foreground">
+                    No contact submissions yet.
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     {contactSubmissions.map((submission) => (
-                      <Card
+                      <div
                         key={submission.id}
-                        className={!submission.is_read ? "border-primary" : ""}
+                        className={`p-4 border rounded-lg ${
+                          submission.is_read ? "bg-muted/30" : "bg-background"
+                        }`}
                       >
-                        <CardContent className="p-6">
-                          <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
                             <div>
-                              <h3 className="font-semibold text-lg">{submission.name}</h3>
-                              <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                                <a
-                                  href={`mailto:${submission.email}`}
-                                  className="flex items-center gap-1 hover:text-primary"
-                                >
-                                  <Mail className="h-4 w-4" />
-                                  {submission.email}
-                                </a>
-                                {submission.phone && (
-                                  <a
-                                    href={`tel:${submission.phone}`}
-                                    className="flex items-center gap-1 hover:text-primary"
-                                  >
-                                    <Phone className="h-4 w-4" />
-                                    {submission.phone}
-                                  </a>
-                                )}
-                              </div>
+                              <h3 className="font-semibold">{submission.name}</h3>
+                              <p className="text-sm text-muted-foreground">{submission.email}</p>
                             </div>
-                            <div className="flex items-center gap-2">
-                              {!submission.is_read && (
-                                <Badge variant="destructive">New</Badge>
-                              )}
-                              <Badge variant="outline">{submission.inquiry_type}</Badge>
-                            </div>
+                            <Badge variant={submission.is_read ? "secondary" : "default"}>
+                              {submission.inquiry_type}
+                            </Badge>
                           </div>
-
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleReadStatus("contact", submission.id, submission.is_read)}
+                            >
+                              {submission.is_read ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </Button>
+                            <span className="text-xs text-muted-foreground">
+                              {formatDate(submission.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-3">
+                          {submission.phone && (
+                            <div className="flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              <span>{submission.country_code} {submission.phone}</span>
+                            </div>
+                          )}
                           {submission.company && (
-                            <div className="flex items-center gap-2 mb-2 text-sm">
-                              <Building className="h-4 w-4 text-muted-foreground" />
+                            <div className="flex items-center gap-1">
+                              <Building className="h-3 w-3" />
                               <span>{submission.company}</span>
                             </div>
                           )}
-
                           {submission.title && (
-                            <div className="flex items-center gap-2 mb-2 text-sm">
-                              <Tag className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">Title:</span>
+                            <div className="flex items-center gap-1">
+                              <Tag className="h-3 w-3" />
                               <span>{submission.title}</span>
                             </div>
                           )}
-
                           {submission.country && (
-                            <div className="flex items-center gap-2 mb-2 text-sm">
-                              <MapPin className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">Country:</span>
+                            <div className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
                               <span>{submission.country}</span>
-                              {submission.country_code && (
-                                <span className="text-muted-foreground">({submission.country_code})</span>
-                              )}
                             </div>
                           )}
-
-                          <div className="bg-muted p-4 rounded-lg mb-4">
-                            <p className="text-sm whitespace-pre-wrap">{submission.message}</p>
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Calendar className="h-4 w-4" />
-                              {formatDate(submission.created_at)}
-                            </div>
-                            {!submission.is_read && (
-                              <Button
-                                size="sm"
-                                onClick={() => markContactAsRead(submission.id)}
-                              >
-                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                                Mark as Read
-                              </Button>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
+                        </div>
+                        
+                        <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded">
+                          {submission.message}
+                        </p>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -322,57 +483,37 @@ const AdminSubmissions = () => {
             </Card>
           </TabsContent>
 
-          {/* Visitor Registrations */}
-          <TabsContent value="visitors" className="space-y-4">
-            {/* Visitor Registration Control */}
-            <Card className="border-blue-200 bg-blue-50">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {visitorRegEnabled ? (
-                      <ToggleRight className="h-5 w-5 text-green-600" />
-                    ) : (
-                      <ToggleLeft className="h-5 w-5 text-red-600" />
-                    )}
+          {/* Visitor Registrations Tab */}
+          <TabsContent value="visitors">
+            <div className="space-y-6">
+              {/* Visitor Registration Control */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ToggleLeft className="h-5 w-5" />
                     Visitor Registration Control
-                  </div>
-                  <Button 
-                    onClick={saveVisitorRegistrationSettings}
-                    disabled={savingSettings}
-                    size="sm"
-                  >
-                    {savingSettings ? "Saving..." : "Save Settings"}
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-white rounded-lg">
-                  <div className="space-y-1">
-                    <Label className="text-base font-semibold">
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="visitor-registration"
+                      checked={visitorRegEnabled}
+                      onCheckedChange={setVisitorRegEnabled}
+                    />
+                    <Label htmlFor="visitor-registration">
                       Enable Visitor Registration
                     </Label>
-                    <p className="text-sm text-muted-foreground">
-                      {visitorRegEnabled 
-                        ? "Visitors can submit registration requests" 
-                        : "Visitor registration is closed - form will be hidden"}
-                    </p>
                   </div>
-                  <Switch
-                    checked={visitorRegEnabled}
-                    onCheckedChange={setVisitorRegEnabled}
-                  />
-                </div>
-                
-                {!visitorRegEnabled && (
-                  <div className="space-y-4 p-4 bg-white rounded-lg">
+
+                  <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="closed-message-en">Closed Message (English)</Label>
                       <Textarea
                         id="closed-message-en"
                         value={closedMessageEn}
                         onChange={(e) => setClosedMessageEn(e.target.value)}
-                        placeholder="Message to show when registration is closed"
-                        rows={3}
+                        placeholder="Registration is currently closed..."
                       />
                     </div>
                     <div className="space-y-2">
@@ -381,131 +522,288 @@ const AdminSubmissions = () => {
                         id="closed-message-ar"
                         value={closedMessageAr}
                         onChange={(e) => setClosedMessageAr(e.target.value)}
-                        placeholder="الرسالة عند إغلاق التسجيل"
-                        rows={3}
-                        dir="rtl"
-                        className="text-right"
+                        placeholder="التسجيل مغلق حالياً..."
                       />
                     </div>
+                  </div>
+
+                  <Button onClick={updateVisitorSettings}>
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Update Settings
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Visitor Submissions */}
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Visitor Registrations ({submissionCounts.visitors})
+                  </CardTitle>
+                  <Button onClick={() => downloadExcel("visitors")} variant="outline">
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Excel
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {visitorRegistrations.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No visitor registrations yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {visitorRegistrations.map((registration) => (
+                        <div
+                          key={registration.id}
+                          className={`p-4 border rounded-lg ${
+                            registration.is_read ? "bg-muted/30" : "bg-background"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <h3 className="font-semibold">{registration.name}</h3>
+                              <p className="text-sm text-muted-foreground">{registration.email}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleReadStatus("visitor", registration.id, registration.is_read)}
+                              >
+                                {registration.is_read ? (
+                                  <EyeOff className="h-4 w-4" />
+                                ) : (
+                                  <Eye className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <span className="text-xs text-muted-foreground">
+                                {formatDate(registration.created_at)}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            {registration.phone && (
+                              <div className="flex items-center gap-1">
+                                <Phone className="h-3 w-3" />
+                                <span>{registration.phone}</span>
+                              </div>
+                            )}
+                            {registration.company && (
+                              <div className="flex items-center gap-1">
+                                <Building className="h-3 w-3" />
+                                <span>{registration.company}</span>
+                              </div>
+                            )}
+                            {registration.job_title && (
+                              <div className="flex items-center gap-1">
+                                <Tag className="h-3 w-3" />
+                                <span>{registration.job_title}</span>
+                              </div>
+                            )}
+                            {registration.country && (
+                              <div className="flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                <span>{registration.country}</span>
+                              </div>
+                            )}
+                            {registration.visit_date && (
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                <span>{registration.visit_date}</span>
+                              </div>
+                            )}
+                            {registration.interests && registration.interests.length > 0 && (
+                              <div className="col-span-2">
+                                <span className="text-xs font-medium">Interests: </span>
+                                <span className="text-xs">{registration.interests.join(", ")}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Exhibitor Inquiries Tab */}
+          <TabsContent value="exhibitors">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Building className="h-5 w-5" />
+                  Exhibitor Inquiries ({submissionCounts.exhibitors})
+                </CardTitle>
+                <Button onClick={() => downloadExcel("exhibitors")} variant="outline">
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Excel
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {contactSubmissions.filter(s => s.inquiry_type === "exhibitor").length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No exhibitor inquiries yet.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {contactSubmissions
+                      .filter(submission => submission.inquiry_type === "exhibitor")
+                      .map((submission) => (
+                        <div
+                          key={submission.id}
+                          className={`p-4 border rounded-lg ${
+                            submission.is_read ? "bg-muted/30" : "bg-background"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <h3 className="font-semibold">{submission.name}</h3>
+                              <p className="text-sm text-muted-foreground">{submission.email}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleReadStatus("contact", submission.id, submission.is_read)}
+                              >
+                                {submission.is_read ? (
+                                  <EyeOff className="h-4 w-4" />
+                                ) : (
+                                  <Eye className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <span className="text-xs text-muted-foreground">
+                                {formatDate(submission.created_at)}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-3">
+                            {submission.phone && (
+                              <div className="flex items-center gap-1">
+                                <Phone className="h-3 w-3" />
+                                <span>{submission.country_code} {submission.phone}</span>
+                              </div>
+                            )}
+                            {submission.company && (
+                              <div className="flex items-center gap-1">
+                                <Building className="h-3 w-3" />
+                                <span>{submission.company}</span>
+                              </div>
+                            )}
+                            {submission.title && (
+                              <div className="flex items-center gap-1">
+                                <Tag className="h-3 w-3" />
+                                <span>{submission.title}</span>
+                              </div>
+                            )}
+                            {submission.country && (
+                              <div className="flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                <span>{submission.country}</span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded">
+                            {submission.message}
+                          </p>
+                        </div>
+                      ))}
                   </div>
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
 
+          {/* Sponsor Inquiries Tab */}
+          <TabsContent value="sponsors">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Visitor Registrations ({visitorRegistrations.length})
+                  <Tag className="h-5 w-5" />
+                  Sponsor Inquiries ({submissionCounts.sponsors})
                 </CardTitle>
+                <Button onClick={() => downloadExcel("sponsors")} variant="outline">
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Excel
+                </Button>
               </CardHeader>
               <CardContent>
-                {visitorRegistrations.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">
-                    No visitor registrations yet
-                  </p>
+                {contactSubmissions.filter(s => s.inquiry_type === "sponsor").length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No sponsor inquiries yet.
+                  </div>
                 ) : (
                   <div className="space-y-4">
-                    {visitorRegistrations.map((visitor) => (
-                      <Card
-                        key={visitor.id}
-                        className={!visitor.is_read ? "border-primary" : ""}
-                      >
-                        <CardContent className="p-6">
-                          <div className="flex items-start justify-between mb-4">
+                    {contactSubmissions
+                      .filter(submission => submission.inquiry_type === "sponsor")
+                      .map((submission) => (
+                        <div
+                          key={submission.id}
+                          className={`p-4 border rounded-lg ${
+                            submission.is_read ? "bg-muted/30" : "bg-background"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between mb-3">
                             <div>
-                              <h3 className="font-semibold text-lg">{visitor.name}</h3>
-                              <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                                <a
-                                  href={`mailto:${visitor.email}`}
-                                  className="flex items-center gap-1 hover:text-primary"
-                                >
-                                  <Mail className="h-4 w-4" />
-                                  {visitor.email}
-                                </a>
-                                {visitor.phone && (
-                                  <a
-                                    href={`tel:${visitor.phone}`}
-                                    className="flex items-center gap-1 hover:text-primary"
-                                  >
-                                    <Phone className="h-4 w-4" />
-                                    {visitor.phone}
-                                  </a>
-                                )}
-                              </div>
+                              <h3 className="font-semibold">{submission.name}</h3>
+                              <p className="text-sm text-muted-foreground">{submission.email}</p>
                             </div>
-                            {!visitor.is_read && (
-                              <Badge variant="destructive">New</Badge>
-                            )}
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                            {visitor.company && (
-                              <div className="flex items-center gap-2 text-sm">
-                                <Building className="h-4 w-4 text-muted-foreground" />
-                                <span>{visitor.company}</span>
-                              </div>
-                            )}
-                            {visitor.job_title && (
-                              <div className="flex items-center gap-2 text-sm">
-                                <Tag className="h-4 w-4 text-muted-foreground" />
-                                <span>{visitor.job_title}</span>
-                              </div>
-                            )}
-                            {visitor.country && (
-                              <div className="flex items-center gap-2 text-sm">
-                                <MapPin className="h-4 w-4 text-muted-foreground" />
-                                <span>{visitor.country}</span>
-                              </div>
-                            )}
-                            {visitor.visit_date && (
-                              <div className="flex items-center gap-2 text-sm">
-                                <Calendar className="h-4 w-4 text-muted-foreground" />
-                                <span>Preferred: {visitor.visit_date}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {visitor.interests && visitor.interests.length > 0 && (
-                            <div className="mb-4">
-                              <p className="text-sm font-medium mb-2">Interests:</p>
-                              <div className="flex flex-wrap gap-2">
-                                {visitor.interests.map((interest, idx) => (
-                                  <Badge key={idx} variant="secondary">
-                                    {interest}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {visitor.how_heard && (
-                            <div className="bg-muted p-3 rounded-lg mb-4">
-                              <p className="text-sm">
-                                <span className="font-medium">How they heard:</span>{" "}
-                                {visitor.how_heard}
-                              </p>
-                            </div>
-                          )}
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Calendar className="h-4 w-4" />
-                              {formatDate(visitor.created_at)}
-                            </div>
-                            {!visitor.is_read && (
+                            <div className="flex items-center gap-2">
                               <Button
+                                variant="ghost"
                                 size="sm"
-                                onClick={() => markVisitorAsRead(visitor.id)}
+                                onClick={() => toggleReadStatus("contact", submission.id, submission.is_read)}
                               >
-                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                                Mark as Read
+                                {submission.is_read ? (
+                                  <EyeOff className="h-4 w-4" />
+                                ) : (
+                                  <Eye className="h-4 w-4" />
+                                )}
                               </Button>
+                              <span className="text-xs text-muted-foreground">
+                                {formatDate(submission.created_at)}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-3">
+                            {submission.phone && (
+                              <div className="flex items-center gap-1">
+                                <Phone className="h-3 w-3" />
+                                <span>{submission.country_code} {submission.phone}</span>
+                              </div>
+                            )}
+                            {submission.company && (
+                              <div className="flex items-center gap-1">
+                                <Building className="h-3 w-3" />
+                                <span>{submission.company}</span>
+                              </div>
+                            )}
+                            {submission.title && (
+                              <div className="flex items-center gap-1">
+                                <Tag className="h-3 w-3" />
+                                <span>{submission.title}</span>
+                              </div>
+                            )}
+                            {submission.country && (
+                              <div className="flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                <span>{submission.country}</span>
+                              </div>
                             )}
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          
+                          <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded">
+                            {submission.message}
+                          </p>
+                        </div>
+                      ))}
                   </div>
                 )}
               </CardContent>
